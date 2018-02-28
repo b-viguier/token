@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Compatibility Token</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
+</head>
+<body>
+
+<div id="app">
+    <div>
+        <h1>Token: "{{ token }}"</h1>
+    </div>
+    <div>
+        <table>
+            <tr>
+                <th>Input</th>
+                <th>Output</th>
+            </tr>
+            <tr>
+                <td>
+                    <ul>
+                        <li v-for="(isChecked, id) in options">
+                            <input
+                                    type="checkbox"
+                                    v-model="options[id]"
+                            >
+                            Option {{ id }}
+                        </li>
+                    </ul>
+                </td>
+                <td>
+                    <ul>
+                        <li v-for="optionId in decodedOptions">
+                            Option {{ optionId }}
+                        </li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script type="application/javascript">
+    // ucs-2 string to base64 encoded ascii
+    function utoa(str) {
+        console.log(encodeURIComponent(str));
+        return window.btoa(unescape(encodeURIComponent(str)));
+    }
+    // base64 encoded ascii to ucs-2 string
+    function atou(str) {
+        return decodeURIComponent(escape(window.atob(str)));
+    }
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            options: Array(64)
+        },
+        created: function () {
+            this.options.fill(false, 0, this.options.length);
+        },
+        computed: {
+            token: function () {
+                var currentByte = 0;
+                var bitsPerByte = 16; //check String.fromCharCode documentation
+                var byteString = '';
+                for (var i = 0; i < this.options.length; ++i) {
+                    var byteIndex = i % bitsPerByte;
+                    if (byteIndex == 0) {
+                        if (i > 0) {
+                            byteString += String.fromCharCode(currentByte);
+                        }
+                        currentByte = this.options[i] ? 1 : 0;
+                    } else if (this.options[i]) {
+                        currentByte += 1 << byteIndex;
+                    }
+                }
+                if (i % bitsPerByte == 0) {
+                    byteString += String.fromCharCode(currentByte);
+                }
+                var token = utoa(byteString);
+                return token;
+            },
+            decodedOptions: function () {
+                var token = this.token;
+                var byteString = atou(token);
+                var bitsPerByte = 16; //check charCodeAt documentation
+                var checkedOptions = [];
+                for (var i = 0; i < byteString.length; ++i) {
+                    var byte = byteString.charCodeAt(i);
+                    for (var byteIndex = 0; byteIndex < 16; ++byteIndex) {
+                        if (byte & 1 << byteIndex) {
+                            checkedOptions.push(i * bitsPerByte + byteIndex);
+                        }
+                    }
+                }
+                return checkedOptions;
+            }
+        }
+    })
+</script>
+</body>
+</html>
